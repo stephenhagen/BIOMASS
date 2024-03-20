@@ -150,6 +150,29 @@
 #' @keywords datasets AGBmonteCarlo internal
 "param_4"
 
+#' Posterior distribution of Schnitzer et al.'s liana biomass equation
+#'
+#' This matrix contains the posterior distribution of the parameters of Schnitzer equation,
+#' obtained in a Bayesian framework with uninformative priors through a Metropolis algorithm.
+#'
+#' @docType data
+#' @usage data("param_4liana")
+#' @format
+#' A data frame with 1001 observations on the following 3 variables.
+#'   - `intercept`: Vector of intercept values
+#'   - `logagbt`: Vector of the model coefficients associated with liana diameter
+#'   - `sd`: Vector of model residual standard error (RSE) values
+#'
+#' @details This dataset is used in the function [lianaAGBmonteCarlo()].
+#' @references
+#' Schnitzer 2006 Ecology paper ‘Maximum stem diameter predicts liana population demography’
+#' 
+#' @examples
+#' data(param_4liana)
+#' str(param_4liana)
+#' @keywords datasets lianaAGBmonteCarlo internal
+"param_4liana"
+
 
 #' Posterior distribution of parameters associated with the equation 7 by Chave et al. 2014.
 #'
@@ -234,6 +257,9 @@
 #' @keywords datasets wood density getWoodDensity internal
 "wdData"
 
+
+
+"param_4liana"
 
 #' @name HDmethods
 #'
