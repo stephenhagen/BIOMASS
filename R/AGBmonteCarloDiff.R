@@ -103,7 +103,8 @@
 #    FOR RECRUITMENT.
 AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
                           HDmodel = NULL, coord = NULL, Dpropag = NULL, n = 1000,
-                          Carbon = FALSE, Dlim = NULL, plot = NULL) {
+                          Carbon = FALSE, Dlim = NULL, plot = NULL, Dthresh = NULL, 
+                          paramAGBread = NULL, paramAGBwrite = NULL) {
   len <- length(D)
 
   # parameters verification -------------------------------------------------
@@ -166,6 +167,9 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     stop("The 'plot' vector must be with 'model' argument")
   }
 
+  if (!is.null(Dthresh) && (Dthresh < 10.0 || Dthresh > 100.0)) {
+    stop("The Dthresh dendrometer threshold must be between 10 and 100 cm")
+  }
 
 
   # function truncated random gausien law -----------------------------------
@@ -185,26 +189,41 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     if (length(Dpropag) == 1 && tolower(Dpropag) == "chave2004") {
       # Propagation of the measurement error on D: based on Chave et al. 2004 (p.412) Phil. Trans. R. Soc. Lond. B.
       fivePercent <- round(len * 5 / 100)
-      chaveError <- function(x, len) {
+      chaveError <- function(x, len, Dthresh) {
         ## Use dendrometers on trees with DBH over 30 cm
-        dendro_threshold <- 20.0
+        #dendro_threshold <- 20.0
         
         ## Assigning large errors on 5% of the trees
         largeErrSample <- sample(len, fivePercent)
 
         D_sd <- 0.0062 * x + 0.0904 # Assigning small errors on the remaining 95% trees
         # Assume that dendrometers reduce the error - see Butt et al 2013 - https://pubmed.ncbi.nlm.nih.gov/23865241/
-        D_sd[x > dendro_threshold] <- 0.0062 * x[x > dendro_threshold] + 0.0704 # Assigning smaller errors on dendrobanded trees
-#        D_sd <- 0.0062 * x + 0.0904 # Assigning small errors on the remaining 95% trees
+#        if (!is.null(Dthresh)) {
+#          if (Dthresh >= 10.0 && Dthresh <= 100.0) {
+#            D_sd[x > dendro_threshold] <- 0.0062 * x[x > dendro_threshold] + 0.0704 # Assigning smaller errors on dendrobanded trees
+#          }
+#        }
         D_sd[largeErrSample] <- 4.64
-        print('using 30 cm threshold')
 
-        x <- myrtruncnorm(n = len, mean = x, sd = D_sd, lower = 0.1, upper = 500)
-        return(x)
+        D_adj <- myrtruncnorm(n = len, mean = x, sd = D_sd, lower = 0.1, upper = 500)
+        # Assume the measurement error associated with dendrometers is 0.03 cm lower than with tape 
+        #   dendrometers reduce the error - see Butt et al 2013 - https://pubmed.ncbi.nlm.nih.gov/23865241/
+        if (!is.null(Dthresh)) {
+          D_err <- D_adj - x
+          signArray <- D_err
+          signArray[signArray > 0] <- 1
+          signArray[signArray <= 0] <- -1
+          D_err_Den <- abs(D_err) 
+          D_err_Den[x >= Dthresh] <- D_err_Den[x >= Dthresh] - 0.031 
+          D_err_Den[D_err_Den < 0] <- 0
+          D_err_Den[signArray <= 0] <- -1.0 * D_err_Den[signArray <= 0] 
+          D_adj <- x + D_err_Den
+        }
+        return(D_adj)
       }
-      D_simu <- suppressWarnings(replicate(n, chaveError(D, len)))
+      D_simu <- suppressWarnings(replicate(n, chaveError(D, len, Dthresh)))
       if (!is.null(D2)) {
-        D2_simu <- suppressWarnings(replicate(n, chaveError(D2, len)))
+        D2_simu <- suppressWarnings(replicate(n, chaveError(D2, len, Dthresh)))
       }
     }
     else {
@@ -259,7 +278,14 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     # --------------------- AGB ---------------------
 
     param_4 <- BIOMASS::param_4
-    selec <- sample(1:nrow(param_4), n)
+    if (!is.null(paramAGBread)) {
+      selec <- read.csv(paramAGBread)
+    } else {
+      selec <- sample(1:nrow(param_4), n)
+    }
+    if (!is.null(paramAGBwrite)) {
+      write.csv(selec, paramAGBwrite, row.names=FALSE)
+    }
     RSE <- param_4[selec, "sd"]
 
     # Construct a matrix where each column contains random errors taken from N(0,RSEi) with i varying between 1 and n
@@ -308,7 +334,16 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     # Equ 7
     # Log(agb) = -1.803 - 0.976 (0.178TS - 0.938CWD - 6.61PS) + 0.976log(WD) + 2.673log(D) -0.0299log(D2)
     param_7 <- BIOMASS::param_7
-    selec <- sample(1:nrow(param_7), n)
+#    selec <- sample(1:nrow(param_7), n)
+    if (!is.null(paramAGBread)) {
+      selec <- read.csv(paramAGBread)
+      selec <- selec$x
+    } else {
+      selec <- sample(1:nrow(param_7), n)
+    }
+    if (!is.null(paramAGBwrite)) {
+      write.csv(selec, paramAGBwrite, row.names=FALSE)
+    }
 
     # Posterior model parameters
     RSE <- param_7[selec, "sd"] # vector of simulated RSE values
