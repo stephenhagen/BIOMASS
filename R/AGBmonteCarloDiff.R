@@ -103,8 +103,8 @@
 #    FOR RECRUITMENT.
 AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
                           HDmodel = NULL, coord = NULL, Dpropag = NULL, n = 1000,
-                          Carbon = FALSE, Dlim = NULL, plot = NULL, Dthresh = NULL, 
-                          paramAGBread = NULL, paramAGBwrite = NULL) {
+                          Carbon = FALSE, Dlim = NULL, plot = NULL, Dthresh = NULL,
+                          paramAGBread = NULL, paramAGBwrite = NULL, useModelError = TRUE, rts_array = NULL) {
   len <- length(D)
 
   # parameters verification -------------------------------------------------
@@ -249,14 +249,20 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
 
 
   #### Below 0.08 and 1.39 are the minimum and the Maximum WD value from the global wood density database respectively
-  WD_simu <- suppressWarnings(replicate(n, myrtruncnorm(n = len, mean = WD, sd = errWD, lower = 0.08, upper = 1.39)))
-
+  if (useModelError == FALSE) {
+    print('Tree A start')
+    WD_simu <- suppressWarnings(replicate(n, myrtruncnorm(n = len, mean = WD, sd = 0, lower = 0.08, upper = 1.39)))
+    print('Tree A end')
+  } else { 
+    WD_simu <- suppressWarnings(replicate(n, myrtruncnorm(n = len, mean = WD, sd = errWD, lower = 0.08, upper = 1.39)))
+  }
 
 
 
 
 
   # --------------------- H ---------------------
+
 
   # if there is data for H
   if (!is.null(HDmodel) | !is.null(H)) {
@@ -277,26 +283,33 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
 
     # --------------------- AGB ---------------------
 
-    param_4 <- BIOMASS::param_4
-    if (!is.null(paramAGBread)) {
-      selec <- read.csv(paramAGBread)
+    if (useModelError == TRUE) {
+      param_4 <- BIOMASS::param_4
+      if (!is.null(paramAGBread)) {
+        tempSelec <- read.csv(paramAGBread)
+        selec <- tempSelec$x
+      } else {
+        selec <- sample(1:nrow(param_4), n)
+      }
+      if (!is.null(paramAGBwrite)) {
+        write.csv(selec, paramAGBwrite, row.names=FALSE)
+      }
+      RSE <- param_4[selec, "sd"]
+
+      # Construct a matrix where each column contains random errors taken from N(0,RSEi) with i varying between 1 and n
+      matRSE <- mapply(function(y) {
+        rnorm(sd = y, n = len)
+      }, y = RSE)
+
+      # Posterior model parameters
+      Ealpha <- param_4[selec, "intercept"]
+      Ebeta <- param_4[selec, "logagbt"]
     } else {
-      selec <- sample(1:nrow(param_4), n)
+      Ealpha <- -2.762
+      Ebeta <- 0.9758
+      matRSE <- 0
     }
-    if (!is.null(paramAGBwrite)) {
-      write.csv(selec, paramAGBwrite, row.names=FALSE)
-    }
-    RSE <- param_4[selec, "sd"]
-
-    # Construct a matrix where each column contains random errors taken from N(0,RSEi) with i varying between 1 and n
-    matRSE <- mapply(function(y) {
-      rnorm(sd = y, n = len)
-    }, y = RSE)
-
-    # Posterior model parameters
-    Ealpha <- param_4[selec, "intercept"]
-    Ebeta <- param_4[selec, "logagbt"]
-
+    
     # Propagation of the error using simulated parameters
     Comp <- t(log(WD_simu * H_simu * D_simu^2)) * Ebeta + Ealpha
     Comp <- t(Comp) + matRSE
@@ -324,44 +337,72 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     if (is.null(dim(coord))) {
       coord <- as.matrix(t(coord))
     }
-
-    bioclimParams <- getBioclimParam(coord) # get bioclim variables corresponding to the coordinates
-
-    if (nrow(bioclimParams) == 1) {
-      bioclimParams <- bioclimParams[rep(1, len), ]
-    }
-
-    # Equ 7
-    # Log(agb) = -1.803 - 0.976 (0.178TS - 0.938CWD - 6.61PS) + 0.976log(WD) + 2.673log(D) -0.0299log(D2)
-    param_7 <- BIOMASS::param_7
-#    selec <- sample(1:nrow(param_7), n)
-    if (!is.null(paramAGBread)) {
-      selec <- read.csv(paramAGBread)
-      selec <- selec$x
+    # PASSING IN ALREADY CALCULATED BIOCLIM PARAMS UNDER VAR coord
+    if (ncol(coord) > 2) {
+      if (nrow(bioclimParams) == 1) {
+        bioclimParams <- coord[rep(1, len), ]
+      } else {
+        bioclimParams <- coord
+      }
+    # CALCULATE bioclimParams
     } else {
-      selec <- sample(1:nrow(param_7), n)
-    }
-    if (!is.null(paramAGBwrite)) {
-      write.csv(selec, paramAGBwrite, row.names=FALSE)
+      print('Tree B start')
+      # THIS SECTION TAKES THE MOST PROCESSING TIME
+      bioclimParams <- getBioclimParam(coord) # get bioclim variables corresponding to the coordinates
+      print('Tree B end')
+
+      print('Tree C start')
+      if (nrow(bioclimParams) == 1) {
+        bioclimParams <- bioclimParams[rep(1, len), ]
+      }
+      print('Tree C end')
     }
 
-    # Posterior model parameters
-    RSE <- param_7[selec, "sd"] # vector of simulated RSE values
+    if (useModelError == TRUE) {
+      # Equ 7
+      # Log(agb) = -1.803 - 0.976 (0.178TS - 0.938CWD - 6.61PS) + 0.976log(WD) + 2.673log(D) -0.0299log(D2)
+      param_7 <- BIOMASS::param_7
+      rownames(param_7) <- NULL
+#      selec <- sample(1:nrow(param_7), n)
+      if (!is.null(paramAGBread)) {
+        selec <- read.csv(paramAGBread)
+        selec <- selec$x
+      } else {
+        selec <- sample(1:nrow(param_7), n)
+      }
+      if (!is.null(paramAGBwrite)) {
+        write.csv(selec, paramAGBwrite, row.names=FALSE)
+      }
 
-    # Recalculating n E values based on posterior parameters associated with the bioclimatic variables
-    Esim <- tcrossprod(as.matrix(param_7[selec, c("temp", "prec", "cwd")]), as.matrix(bioclimParams))
+      # Posterior model parameters
+      RSE <- param_7[selec, "sd"] # vector of simulated RSE values
+
+      # Recalculating n E values based on posterior parameters associated with the bioclimatic variables
+      Esim <- tcrossprod(as.matrix(param_7[selec, c("temp", "prec", "cwd")]), as.matrix(bioclimParams))
 
       # DO THESE RANDOM ERRORS NEED TO BE ESTIMATED SEPARATELY AT T1 AND T2? ASSUMING NO FOR NOW
-#    selec2 <- sample(1:nrow(param_7), n)
-#    RSE2 <- param_7[selec2, "sd"] # vector of simulated RSE values
-#    Esim2 <- tcrossprod(as.matrix(param_7[selec2, c("temp", "prec", "cwd")]), as.matrix(bioclimParams))
+#     selec2 <- sample(1:nrow(param_7), n)
+#     RSE2 <- param_7[selec2, "sd"] # vector of simulated RSE values
+#     Esim2 <- tcrossprod(as.matrix(param_7[selec2, c("temp", "prec", "cwd")]), as.matrix(bioclimParams))
 
-    # Applying AGB formula over simulated matrices and vectors
-    AGB_simu <- t(t(log(WD_simu)) * param_7[selec, "logwsg"] +
-      t(log(D_simu)) * param_7[selec, "logdbh"] +
-      t(log(D_simu)^2) * param_7[selec, "logdbh2"] +
-      Esim * -param_7[selec, "E"] +
-      param_7[selec, "intercept"])
+      # Applying AGB formula over simulated matrices and vectors
+      AGB_simu <- t(t(log(WD_simu)) * param_7[selec, "logwsg"] +
+        t(log(D_simu)) * param_7[selec, "logdbh"] +
+        t(log(D_simu)^2) * param_7[selec, "logdbh2"] +
+        Esim * -param_7[selec, "E"] +
+        param_7[selec, "intercept"])
+    } else { # taken from param_7 table median value
+      print('Tree D start')
+      newTempMat <- t(replicate(n, c(-0.1779, 6.588, 0.9358)))    # Duplicate vector in matrix rows
+      Esim <- tcrossprod(newTempMat, as.matrix(bioclimParams))
+      AGB_simu <- t(t(log(WD_simu)) * 0.9212 +
+        t(log(D_simu)) * 2.788 +
+        t(log(D_simu)^2) * -0.04499 +
+        Esim * 0.8969 +
+        - 2.1)
+      print('Tree D end')
+    }
+        
 
     if (!is.null(D2)) {
       # DO THESE RANDOM ERRORS NEED TO BE ESTIMATED SEPARATELY AT T1 AND T2? ASSUMING NO FOR NOW
@@ -370,17 +411,34 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
 #        t(log(D2_simu)^2) * param_7[selec2, "logdbh2"] +
 #        Esim2 * -param_7[selec2, "E"] +
 #        param_7[selec2, "intercept"])
-      AGB2_simu <- t(t(log(WD_simu)) * param_7[selec, "logwsg"] +
-        t(log(D2_simu)) * param_7[selec, "logdbh"] +
-        t(log(D2_simu)^2) * param_7[selec, "logdbh2"] +
-        Esim * -param_7[selec, "E"] +
-        param_7[selec, "intercept"])
+      if (useModelError == TRUE) {
+        AGB2_simu <- t(t(log(WD_simu)) * param_7[selec, "logwsg"] +
+          t(log(D2_simu)) * param_7[selec, "logdbh"] +
+          t(log(D2_simu)^2) * param_7[selec, "logdbh2"] +
+          Esim * -param_7[selec, "E"] +
+          param_7[selec, "intercept"])
+      } else {
+        print('Tree E start')
+        AGB2_simu <- t(t(log(WD_simu)) * 0.9212 +
+          t(log(D2_simu)) * 2.788 +
+          t(log(D2_simu)^2) * -0.04499 +
+          Esim * 0.8969 +
+          - 2.1)
+        print('Tree E end')
+      }
     }
 
     # Construct a matrix where each column contains random errors taken from N(0,RSEi) with i varying between 1 and n
-    matRSE <- mapply(function(y) {
-      rnorm(sd = y, n = len)
-    }, y = RSE)
+    if (useModelError == TRUE) {
+      matRSE <- mapply(function(y) {
+        rnorm(sd = y, n = len)
+      }, y = RSE)
+    } else {
+      print('Tree F start')
+      matRSE <- 0
+      print('Tree F end')
+    }
+    
     AGB_simu <- AGB_simu + matRSE
     AGB_simu <- exp(AGB_simu) / 1000
     if (!is.null(D2)) {
@@ -405,50 +463,129 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     AGB2_simu[ which(is.infinite(AGB2_simu)) ] <- NA
   }
 
+  #Belowground biomass estimate using Mokany et al 2006 data at the plot level.
+  #    Typically derived from destructive sampling of ~30 trees.
+  # Categories include:
+  #    TMh=Tropical / Subtropical Moist Forest (>125t/ha); 
+  #    TMl=Tropical / Subtropical Moist Forest (<125t/ha); 
+  #    TDh=Tropical / Subtropical Dry Forest (>20t/ha); 
+  #    TDl=Tropical / Subtropical Dry Forest (<20t/ha)  
+  rts_TMh <- c(0.239, 0.327, 0.241, 0.260, 0.270, 0.220, 0.220, 0.220, 0.220, 0.232)
+  rts_TMl <- c(0.180, 0.092, 0.253, 0.230)
+  rts_TDh <- c(0.278, 0.271)
+  rts_TDl <- c(0.684, 0.556, 0.281, 0.571)
+
+  #TODO: Fix the hardcoded use of tropical moist high biomass
+
+  if (useModelError == TRUE) {
+    if (is.null(rts_array)) {
+      ind <- sample(1:length(rts_TMh), n, replace = TRUE)
+      rts_array <- rts_TMh[ind]
+    }
+  } else {
+    print('Tree G start')
+    rts_array <- mean(rts_TMh)
+    print('Tree G end')
+  }
+  
   if (Carbon == FALSE) {
     sum_AGB_simu <- colSums(AGB_simu, na.rm = TRUE)
+    sum_BGB_simu <- sum_AGB_simu * rts_array
+    sum_TotB_simu <- sum_AGB_simu + sum_BGB_simu
     res <- list(
       meanAGB = mean(sum_AGB_simu),
       medAGB = median(sum_AGB_simu),
       sdAGB = sd(sum_AGB_simu),
       credibilityAGB = quantile(sum_AGB_simu, probs = c(0.025, 0.975)),
-      AGB_simu = AGB_simu
+      sum_AGB_simu = sum_AGB_simu,
+      AGB_simu = AGB_simu,
+      D_simu = D_simu,
+      matRSE = matRSE,
+      param_7 = param_7,
+      meanBGB = mean(sum_BGB_simu),
+      medBGB = median(sum_BGB_simu),
+      sdBGB = sd(sum_BGB_simu),
+      credibilityBGB = quantile(sum_BGB_simu, probs = c(0.025, 0.975)),
+      sum_BGB_simu = sum_BGB_simu,
+      meanTotB = mean(sum_TotB_simu),
+      medTotB = median(sum_TotB_simu),
+      sdTotB = sd(sum_TotB_simu),
+      credibilityTotB = quantile(sum_TotB_simu, probs = c(0.025, 0.975)),
+      sum_TotB_simu = sum_TotB_simu,
+      rts_array = rts_array
     )
     if (!is.null(D2)) {
       sum_AGB2_simu <- colSums(AGB2_simu, na.rm = TRUE)
       diff_AGB_simu <- AGB2_simu - AGB_simu
-      sum_Diff_simu <- colSums(diff_AGB_simu, na.rm = TRUE)
+      sum_Diff_AGB_simu <- colSums(diff_AGB_simu, na.rm = TRUE)
+      sum_BGB2_simu <- sum_AGB2_simu * rts_array
+      sum_Diff_BGB_simu <- sum_BGB2_simu - sum_BGB_simu
+      sum_TotB2_simu <- sum_AGB2_simu + sum_BGB2_simu
+      sum_Diff_TotB_simu <- sum_TotB2_simu - sum_TotB_simu
       res2 <- list(
         meanAGB2 = mean(sum_AGB2_simu),
         medAGB2 = median(sum_AGB2_simu),
         sdAGB2 = sd(sum_AGB2_simu),
         credibilityAGB2 = quantile(sum_AGB2_simu, probs = c(0.025, 0.975)),
-        AGB2_simu = AGB2_simu,
-        meanDiff = mean(sum_Diff_simu),
-        medDiff = median(sum_Diff_simu),
-        sdDiff = sd(sum_Diff_simu),
-        credibilityDiff = quantile(sum_Diff_simu, probs = c(0.025, 0.975)),
-        diff_AGB_simu = diff_AGB_simu
+        sum_AGB2_simu = sum_AGB2_simu,
+        
+        meanBGB2 = mean(sum_BGB2_simu),
+        medBGB2 = median(sum_BGB2_simu),
+        sdBGB2 = sd(sum_BGB2_simu),
+        credibilityBGB2 = quantile(sum_BGB2_simu, probs = c(0.025, 0.975)),
+        sum_BGB2_simu = sum_BGB2_simu,
+        
+        meanTotB2 = mean(sum_TotB2_simu),
+        medTotB2 = median(sum_TotB2_simu),
+        sdTotB2 = sd(sum_TotB2_simu),
+        credibilityTotB2 = quantile(sum_TotB2_simu, probs = c(0.025, 0.975)),
+        sum_TotB2_simu = sum_TotB2_simu,
+        
+        meanDiff_AGB = mean(sum_Diff_AGB_simu),
+        medDiff_AGB = median(sum_Diff_AGB_simu),
+        sdDiff_AGB = sd(sum_Diff_AGB_simu),
+        credibilityDiff_AGB = quantile(sum_Diff_AGB_simu, probs = c(0.025, 0.975)),
+        sum_Diff_AGB_simu = sum_Diff_AGB_simu,
+        
+        meanDiff_BGB = mean(sum_Diff_BGB_simu),
+        medDiff_BGB = median(sum_Diff_BGB_simu),
+        sdDiff_BGB = sd(sum_Diff_BGB_simu),
+        credibilityDiff_BGB = quantile(sum_Diff_BGB_simu, probs = c(0.025, 0.975)),
+        sum_Diff_BGB_simu = sum_Diff_BGB_simu,
+        
+        meanDiff_TotB = mean(sum_Diff_TotB_simu),
+        medDiff_TotB = median(sum_Diff_TotB_simu),
+        sdDiff_TotB = sd(sum_Diff_TotB_simu),
+        credibilityDiff_TotB = quantile(sum_Diff_TotB_simu, probs = c(0.025, 0.975)),
+        sum_Diff_TotB_simu = sum_Diff_TotB_simu
       )
       res <- c(res, res2)
     }
   } else {
     # Biomass to carbon ratio calculated from Thomas and Martin 2012 forests data stored in DRYAD (tropical
     # angiosperm stems carbon content)
-    AGC_simu <- AGB_simu * rnorm(mean = 47.13, sd = 2.06, n = n * len) / 100
+    carbFactor <- rnorm(mean = 47.13, sd = 2.06, n = n * len)
+    AGC_simu <- AGB_simu * carbFactor / 100
     sum_AGC_simu <- colSums(AGC_simu, na.rm = TRUE)
+    sum_BGC_simu <- sum_AGC_simu * rts_array
+    sum_TotC_simu <- sum_AGC_simu + sum_BGC_simu
     if (!is.null(D2)) {
-      AGC2_simu <- AGB2_simu * rnorm(mean = 47.13, sd = 2.06, n = n * len) / 100
+      AGC2_simu <- AGB2_simu * carbFactor / 100
       sum_AGC2_simu <- colSums(AGC2_simu, na.rm = TRUE)
       diff_AGC_simu <- AGC2_simu - AGC_simu
-      sum_Diff_simu <- colSums(diff_AGC_simu, na.rm = TRUE)
+      sum_Diff_AGC_simu <- colSums(diff_AGC_simu, na.rm = TRUE)
+      sum_BGC2_simu <- sum_AGC2_simu * rts_array
+      sum_Diff_BGC_simu <- sum_BGC2_simu - sum_BGC_simu
+      sum_TotC2_simu <- sum_AGC2_simu + sum_BGC2_simu
+      sum_Diff_TotC_simu <- sum_TotC2_simu - sum_TotC_simu
     }
     res <- list(
       meanAGC = mean(sum_AGC_simu),
       medAGC = median(sum_AGC_simu),
       sdAGC = sd(sum_AGC_simu),
       credibilityAGC = quantile(sum_AGC_simu, probs = c(0.025, 0.975)),
-      AGC_simu = AGC_simu
+      sum_AGC_simu = sum_AGC_simu,
+      rts_array = rts_array
     )
     if (!is.null(D2)) {
       res2 <- list(
@@ -456,12 +593,38 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
         medAGC2 = median(sum_AGC2_simu),
         sdAGC2 = sd(sum_AGC2_simu),
         credibilityAGC2 = quantile(sum_AGC2_simu, probs = c(0.025, 0.975)),
-        AGC2_simu = AGC2_simu,
-        meanDiff = mean(sum_Diff_simu),
-        medDiff = median(sum_Diff_simu),
-        sdDiff = sd(sum_Diff_simu),
-        credibilityDiff = quantile(sum_Diff_simu, probs = c(0.025, 0.975)),
-        diff_AGC_simu = diff_AGC_simu,
+        sum_AGC2_simu = sum_AGC2_simu,
+
+        meanBGC2 = mean(sum_BGC2_simu),
+        medBGC2 = median(sum_BGC2_simu),
+        sdBGC2 = sd(sum_BGC2_simu),
+        credibilityBGC2 = quantile(sum_BGC2_simu, probs = c(0.025, 0.975)),
+        sum_BGC2_simu = sum_BGC2_simu,
+        
+        meanTotC2 = mean(sum_TotC2_simu),
+        medTotC2 = median(sum_TotC2_simu),
+        sdTotC2 = sd(sum_TotC2_simu),
+        credibilityTotC2 = quantile(sum_TotC2_simu, probs = c(0.025, 0.975)),
+        sum_TotC2_simu = sum_TotC2_simu,
+
+        meanDiff_AGC = mean(sum_Diff_AGC_simu),
+        medDiff_AGC = median(sum_Diff_AGC_simu),
+        sdDiff_AGC = sd(sum_Diff_AGC_simu),
+        credibilityDiff_AGC = quantile(sum_Diff_AGC_simu, probs = c(0.025, 0.975)),
+        sum_Diff_AGC_simu = sum_Diff_AGC_simu,
+        
+        meanDiff_BGC = mean(sum_Diff_BGC_simu),
+        medDiff_BGC = median(sum_Diff_BGC_simu),
+        sdDiff_BGC = sd(sum_Diff_BGC_simu),
+        credibilityDiff_BGC = quantile(sum_Diff_BGC_simu, probs = c(0.025, 0.975)),
+        sum_Diff_BGC_simu = sum_Diff_BGC_simu,
+        
+        meanDiff_TotC = mean(sum_Diff_TotC_simu),
+        medDiff_TotC = median(sum_Diff_TotC_simu),
+        sdDiff_TotC = sd(sum_Diff_TotC_simu),
+        credibilityDiff_TotC = quantile(sum_Diff_TotC_simu, probs = c(0.025, 0.975)),
+        sum_Diff_TotC_simu = sum_Diff_TotC_simu
+
       )
       res <- c(res, res2)
     }
