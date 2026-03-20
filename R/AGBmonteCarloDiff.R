@@ -104,7 +104,8 @@
 AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
                           HDmodel = NULL, coord = NULL, Dpropag = NULL, n = 1000,
                           Carbon = FALSE, Dlim = NULL, plot = NULL, Dthresh = NULL,
-                          paramAGBread = NULL, paramAGBwrite = NULL, useModelError = TRUE, rts_array = NULL) {
+                          paramAGBread = NULL, paramAGBwrite = NULL, useModelError = TRUE, 
+                          speciesError = NULL, rts_array = NULL) {
   len <- length(D)
 
   # parameters verification -------------------------------------------------
@@ -250,15 +251,20 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
 
   #### Below 0.08 and 1.39 are the minimum and the Maximum WD value from the global wood density database respectively
   if (useModelError == FALSE) {
-    print('Tree A start')
     WD_simu <- suppressWarnings(replicate(n, myrtruncnorm(n = len, mean = WD, sd = 0, lower = 0.08, upper = 1.39)))
-    print('Tree A end')
   } else { 
     WD_simu <- suppressWarnings(replicate(n, myrtruncnorm(n = len, mean = WD, sd = errWD, lower = 0.08, upper = 1.39)))
   }
 
-
-
+  if (!is.null(speciesError)) {
+    #select x percent of the trees and assign them a random draw of wood density
+    speciesMisclassifyPct <- as.numeric(speciesError)
+    WDind <- sample.int(length(WD_simu), size=round(length(WD_simu) * speciesMisclassifyPct))
+    newWD <- rnorm(round(length(WD_simu) * speciesMisclassifyPct), mean=mean(WD), sd=sd(WD))  
+    WD_simu[WDind] <- newWD
+    WD_simu[WD_simu < 0.08] <- 0.08
+    WD_simu[WD_simu > 1.39] <- 1.39
+  }
 
 
   # --------------------- H ---------------------
@@ -346,16 +352,12 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
       }
     # CALCULATE bioclimParams
     } else {
-      print('Tree B start')
       # THIS SECTION TAKES THE MOST PROCESSING TIME
       bioclimParams <- getBioclimParam(coord) # get bioclim variables corresponding to the coordinates
-      print('Tree B end')
 
-      print('Tree C start')
       if (nrow(bioclimParams) == 1) {
         bioclimParams <- bioclimParams[rep(1, len), ]
       }
-      print('Tree C end')
     }
 
     if (useModelError == TRUE) {
@@ -392,7 +394,6 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
         Esim * -param_7[selec, "E"] +
         param_7[selec, "intercept"])
     } else { # taken from param_7 table median value
-      print('Tree D start')
       newTempMat <- t(replicate(n, c(-0.1779, 6.588, 0.9358)))    # Duplicate vector in matrix rows
       Esim <- tcrossprod(newTempMat, as.matrix(bioclimParams))
       AGB_simu <- t(t(log(WD_simu)) * 0.9212 +
@@ -400,9 +401,8 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
         t(log(D_simu)^2) * -0.04499 +
         Esim * 0.8969 +
         - 2.1)
-      print('Tree D end')
     }
-        
+    
 
     if (!is.null(D2)) {
       # DO THESE RANDOM ERRORS NEED TO BE ESTIMATED SEPARATELY AT T1 AND T2? ASSUMING NO FOR NOW
@@ -418,13 +418,11 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
           Esim * -param_7[selec, "E"] +
           param_7[selec, "intercept"])
       } else {
-        print('Tree E start')
         AGB2_simu <- t(t(log(WD_simu)) * 0.9212 +
           t(log(D2_simu)) * 2.788 +
           t(log(D2_simu)^2) * -0.04499 +
           Esim * 0.8969 +
           - 2.1)
-        print('Tree E end')
       }
     }
 
@@ -434,9 +432,7 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
         rnorm(sd = y, n = len)
       }, y = RSE)
     } else {
-      print('Tree F start')
       matRSE <- 0
-      print('Tree F end')
     }
     
     AGB_simu <- AGB_simu + matRSE
@@ -463,6 +459,7 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     AGB2_simu[ which(is.infinite(AGB2_simu)) ] <- NA
   }
 
+
   #Belowground biomass estimate using Mokany et al 2006 data at the plot level.
   #    Typically derived from destructive sampling of ~30 trees.
   # Categories include:
@@ -483,9 +480,7 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
       rts_array <- rts_TMh[ind]
     }
   } else {
-    print('Tree G start')
     rts_array <- mean(rts_TMh)
-    print('Tree G end')
   }
   
   if (Carbon == FALSE) {
@@ -516,6 +511,7 @@ AGBmonteCarloDiff <- function(D, D2 = NULL, WD = NULL, errWD = NULL, H = NULL, e
     )
     if (!is.null(D2)) {
       sum_AGB2_simu <- colSums(AGB2_simu, na.rm = TRUE)
+      # WARNING HERE THAT AGB2_simu, AGB_simu are equal even if the species diff; why???!
       diff_AGB_simu <- AGB2_simu - AGB_simu
       sum_Diff_AGB_simu <- colSums(diff_AGB_simu, na.rm = TRUE)
       sum_BGB2_simu <- sum_AGB2_simu * rts_array

@@ -113,10 +113,10 @@ lianaAGBmonteCarloDiff <- function(Dsizebins, sizeClassLow, sizeClassHigh, Dsize
     return(DsizebinsAdj)
   }
 
-  D_mat = array(NA, dim=c(round(sum(Dsizebins)*1.1),n))
+  D_mat = array(NA, dim=c(round(sum(Dsizebins)*1.2),n))
   maxLen = 0
   if (!is.null(Dsizebins2)) {
-    D_mat2 = array(NA, dim=c(round(sum(Dsizebins2)*1.1),n))
+    D_mat2 = array(NA, dim=c(round(sum(Dsizebins2)*1.2),n))
     maxLen2 <- 0
   }
   for (j in 1:n) {
@@ -194,26 +194,20 @@ lianaAGBmonteCarloDiff <- function(Dsizebins, sizeClassLow, sizeClassHigh, Dsize
       rnorm(sd = y, n = len)
     }, y = RSE)
   } else {
-    print('Liana A start')
     matRSE <- 0
     Ebeta <- 2.556
     Ealpha <- -1.431
-    print('Liana A end')
   }
 
   # Propagation of the error using simulated parameters
-  print('Liana B start')
   Comp <- t(log(D_simu)) * Ebeta + Ealpha
   Comp <- t(Comp) + matRSE
-  print('Liana B end')
 
   # Backtransformation
-  print('Liana C start')
   AGB_simu <- exp(Comp) / 1000
 
   if (!is.null(Dlim)) AGB_simu[D < Dlim, ] <- 0
   AGB_simu[ which(is.infinite(AGB_simu)) ] <- NA
-  print('Liana C end')
 
 
   if (!is.null(Dsizebins2)) {
@@ -224,21 +218,17 @@ lianaAGBmonteCarloDiff <- function(Dsizebins, sizeClassLow, sizeClassHigh, Dsize
         rnorm(sd = y, n = len2)
       }, y = RSE)
     } else {
-      print('Liana D start')
       matRSE2 <- 0
       Ebeta <- 2.556
       Ealpha <- -1.431
-      print('Liana D end')
     }
 
     # Propagation of the error using simulated parameters
-    print('Liana E start')
     Comp2 <- t(log(D_simu2)) * Ebeta + Ealpha
     Comp2 <- t(Comp2) + matRSE2
 
     # Backtransformation
     AGB_simu2 <- exp(Comp2) / 1000
-    print('Liana E end')
 
     if (!is.null(Dlim)) AGB_simu2[D2 < Dlim, ] <- 0
     AGB_simu2[ which(is.infinite(AGB_simu2)) ] <- NA
