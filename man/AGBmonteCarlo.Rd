@@ -2,7 +2,7 @@
 % Please edit documentation in R/AGBmonteCarlo.R
 \name{AGBmonteCarlo}
 \alias{AGBmonteCarlo}
-\title{Propagating above-ground biomass (AGB) or carbon (AGC) errors to the stand level}
+\title{Propagating above ground biomass (AGB) or carbon (AGC) errors to the stand level}
 \usage{
 AGBmonteCarlo(
   D,
@@ -15,8 +15,7 @@ AGBmonteCarlo(
   Dpropag = NULL,
   n = 1000,
   Carbon = FALSE,
-  Dlim = NULL,
-  plot = NULL
+  Dlim = NULL
 )
 }
 \arguments{
@@ -46,11 +45,8 @@ with the diameter measurements or \code{"chave2004"} (an important error on 5 pe
 
 \item{Carbon}{(logical) Whether or not the propagation should be done up to the carbon value (FALSE by default).}
 
-\item{Dlim}{(optional) Minimum diameter (in cm) for which above-ground biomass should be calculated (all diameter below
+\item{Dlim}{(optional) Minimum diameter (in cm) for which above ground biomass should be calculated (all diameter below
 \code{Dlim} will have a 0 value in the output).}
-
-\item{plot}{(optional) Plot ID, must be either one value, or a vector of the same length as D. This argument is used to build
-stand-specific HD models.}
 }
 \value{
 Returns a list  with (if Carbon is FALSE):
@@ -71,47 +67,41 @@ See Rejou-Mechain et al. (2017) for all details on the error propagation procedu
 \examples{
 # Load a database
 data(NouraguesHD)
-data(KarnatakaForest)
+data(NouraguesTrees)
 
 # Modelling height-diameter relationship
-HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, method = "log2")
+HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, method = "log2", bayesian = FALSE)
 
 # Retrieving wood density values
 \donttest{
-KarnatakaWD <- getWoodDensity(KarnatakaForest$genus, KarnatakaForest$species,
-  stand = KarnatakaForest$plotId
+NouraguesWD <- getWoodDensity(NouraguesTrees$Genus, NouraguesTrees$Species,
+  stand = NouraguesTrees$Plot
 )
 }
 
-# Propagating errors with a standard error in wood density in one plot
-filt <- KarnatakaForest$plotId == "BSP20"
-set.seed(10)
+# Propagating errors with a standard error for Wood density
 \donttest{
 resultMC <- AGBmonteCarlo(
-  D = KarnatakaForest$D[filt], WD = KarnatakaWD$meanWD[filt],
-  errWD = KarnatakaWD$sdWD[filt], HDmodel = HDmodel
+  D = NouraguesTrees$D, WD = NouraguesWD$meanWD,
+  errWD = NouraguesWD$sdWD, HDmodel = HDmodel
 )
-str(resultMC)
 }
 
 # If only the coordinates are available
-lat <- KarnatakaForest$lat[filt]
-long <- KarnatakaForest$long[filt]
-coord <- cbind(long, lat)
+coord <- c(-52.683213,4.083024 )
 \donttest{
 resultMC <- AGBmonteCarlo(
-  D = KarnatakaForest$D[filt], WD = KarnatakaWD$meanWD[filt],
-  errWD = KarnatakaWD$sdWD[filt], coord = coord
+  D = NouraguesTrees$D, WD = NouraguesWD$meanWD,
+  errWD = NouraguesWD$sdWD, coord = coord
 )
-str(resultMC)
 }
 
 # Propagating errors with a standard error in wood density in all plots at once
 \donttest{
-KarnatakaForest$meanWD <- KarnatakaWD$meanWD
-KarnatakaForest$sdWD <- KarnatakaWD$sdWD
+NouraguesTrees$meanWD <- NouraguesWD$meanWD
+NouraguesTrees$sdWD <- NouraguesWD$sdWD
 resultMC <- by(
-  KarnatakaForest, KarnatakaForest$plotId,
+  NouraguesTrees, NouraguesTrees$Plot,
   function(x) AGBmonteCarlo(
       D = x$D, WD = x$meanWD, errWD = x$sdWD,
       HDmodel = HDmodel, Dpropag = "chave2004"
@@ -120,6 +110,7 @@ resultMC <- by(
 meanAGBperplot <- unlist(sapply(resultMC, "[", 1))
 credperplot <- sapply(resultMC, "[", 4)
 }
+closeAllConnections()
 
 }
 \references{
@@ -133,5 +124,5 @@ Methods in Ecology and Evolution, 8 (9), 1163-1167.
 \author{
 Maxime REJOU-MECHAIN, Bruno HERAULT, Camille PIPONIOT, Ariane TANGUY, Arthur PERE
 }
-\keyword{carlo}
-\keyword{monte}
+\keyword{Carlo}
+\keyword{Monte}

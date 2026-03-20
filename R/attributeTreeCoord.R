@@ -4,8 +4,13 @@ if (getRversion() >= "2.15.1") {
   ))
 }
 
-#' Attribute trees to GPS coordinates
-#'
+#' Attribute GPS coordinates to trees
+#' 
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#' `attributeTreeCoord()` is deprecated. The projected tree coordinates are now retrieved by the `check_plot_coord()` function
+#' Please see the vignette `Spatialized trees and forest stand metrics with BIOMASS`
+#' 
 #' @param xy The relative coordinates of the trees within each plot
 #' @param plot The label of the plot (same length as the number of rows of `xy` or length of 1)
 #' @param dim The dimension of the plot (either one value if the plot is a square or a vector if a rectangle)
@@ -41,10 +46,11 @@ if (getRversion() >= "2.15.1") {
 #' attributeTreeCoord(xy, Forestplot, dim =100,coordAbs = Outcut)
 attributeTreeCoord <- function(xy, plot, dim, coordAbs) {
 
-
+  .Deprecated(msg = "'attributeTreeCoord()' is deprecated and will be removed in the next version. The projected tree coordinates are now retrieved by the `check_plot_coord()` function\nPlease see the vignette `Spatialized trees and forest stand metrics with BIOMASS`")
+  
   # parameters verification -------------------------------------------------
   setDT(coordAbs)
-  setnames(coordAbs, c("XAbs", "YAbs"), c("X", "Y"), skip_absent = TRUE)
+  setnames(coordAbs, c("XAbs", "YAbs","cornerNum"), c("X", "Y","corner"), skip_absent = TRUE)
 
   if (!length(plot) %in% c(1, nrow(xy))) {
     stop("The 'plot' vector must have a length equal to 1 or nrow(xy)")

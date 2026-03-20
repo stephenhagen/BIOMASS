@@ -4,8 +4,6 @@ require(data.table)
 
 # create from internet the file -------------------------------------------
 
-
-
 if (!file.exists("data-raw/genList_tpl.csv")) {
   # Take all the genus from the genus list of the plant list
   fam <- read_html("http://www.theplantlist.org/1.1/browse/-/-/")
@@ -37,26 +35,13 @@ tplList <- fread("data-raw/genList_tpl.csv")
 
 # correct the family ------------------------------------------------------
 
-
-
 # take apg families
 if (!file.exists("data-raw/apgFamilies.csv")) source("data-raw/apgfamily.R")
 apgFamilies <- fread("data-raw/apgFamilies.csv")
 
 
-
 # Correct the families (take the apg ones) thanks to apgFamilies (from before)
 tplList[apgFamilies[, .(famAPG, family = famSyn)], on = "family", family := i.famAPG]
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -110,11 +95,6 @@ kew <- kew[!tplList, on = "genus"]
 
 
 
-
-
-
-
-
 # Add evrything -----------------------------------------------------------
 
 # Add the remaining Kew genera
@@ -143,9 +123,6 @@ dupGen <- unique(dupGen[(Selected), .(Name_matched, Name_matched_accepted_family
 genusFamily[dupGen[, .(genus = Name_matched, family = Name_matched_accepted_family)],
   on = "genus", family := i.family
 ]
-
-
-
 
 
 
@@ -245,10 +222,6 @@ genusFamily[genusFamily$genus == "Zieria", "family"] <- "Rutaceae"
 
 
 
-
-
-
-
 # Build the data ----------------------------------------------------------
 
 
@@ -261,7 +234,7 @@ usethis::use_data(genusFamily, compress = "xz")
 
 
 genusFamily <- genusFamily[base::order(family)]
-genusFamilyOrg <- setDT(copy(BIOMASS::genusFamily))
+genusFamilyOrg <- data.table(BIOMASS::genusFamily)
 genusFamilyOrg <- genusFamilyOrg[base::order(family)]
 
 result <- merge(genusFamilyOrg, genusFamily, all = T, by = "genus")

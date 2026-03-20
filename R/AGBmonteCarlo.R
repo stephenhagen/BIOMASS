@@ -1,6 +1,6 @@
-#' Propagating above-ground biomass (AGB) or carbon (AGC) errors to the stand level
+#' Propagating above ground biomass (AGB) or carbon (AGC) errors to the stand level
 #'
-#' Propagation of the errors throughout the steps needed to compute AGB or AGC.
+#' @description Propagation of the errors throughout the steps needed to compute AGB or AGC.
 #'
 #' @param D Vector of tree diameters (in cm)
 #' @param WD Vector of wood density estimates (in g/cm3)
@@ -18,10 +18,8 @@
 #' 95 percent of the trees).
 #' @param n Number of iterations. Cannot be smaller than 50 or larger than 1000. By default `n = 1000`
 #' @param Carbon (logical) Whether or not the propagation should be done up to the carbon value (FALSE by default).
-#' @param Dlim (optional) Minimum diameter (in cm) for which above-ground biomass should be calculated (all diameter below
+#' @param Dlim (optional) Minimum diameter (in cm) for which above ground biomass should be calculated (all diameter below
 #' `Dlim` will have a 0 value in the output).
-#' @param plot (optional) Plot ID, must be either one value, or a vector of the same length as D. This argument is used to build
-#' stand-specific HD models.
 #'
 #' @details See Rejou-Mechain et al. (2017) for all details on the error propagation procedure.
 #'
@@ -43,47 +41,41 @@
 #' @examples
 #' # Load a database
 #' data(NouraguesHD)
-#' data(KarnatakaForest)
-#'
+#' data(NouraguesTrees)
+#' 
 #' # Modelling height-diameter relationship
-#' HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, method = "log2")
-#'
+#' HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, method = "log2", bayesian = FALSE)
+#' 
 #' # Retrieving wood density values
 #' \donttest{
-#' KarnatakaWD <- getWoodDensity(KarnatakaForest$genus, KarnatakaForest$species,
-#'   stand = KarnatakaForest$plotId
+#' NouraguesWD <- getWoodDensity(NouraguesTrees$Genus, NouraguesTrees$Species,
+#'   stand = NouraguesTrees$Plot
 #' )
 #' }
-#'
-#' # Propagating errors with a standard error in wood density in one plot
-#' filt <- KarnatakaForest$plotId == "BSP20"
-#' set.seed(10)
+#' 
+#' # Propagating errors with a standard error for Wood density
 #' \donttest{
 #' resultMC <- AGBmonteCarlo(
-#'   D = KarnatakaForest$D[filt], WD = KarnatakaWD$meanWD[filt],
-#'   errWD = KarnatakaWD$sdWD[filt], HDmodel = HDmodel
+#'   D = NouraguesTrees$D, WD = NouraguesWD$meanWD,
+#'   errWD = NouraguesWD$sdWD, HDmodel = HDmodel
 #' )
-#' str(resultMC)
 #' }
-#'
+#' 
 #' # If only the coordinates are available
-#' lat <- KarnatakaForest$lat[filt]
-#' long <- KarnatakaForest$long[filt]
-#' coord <- cbind(long, lat)
+#' coord <- c(-52.683213,4.083024 )
 #' \donttest{
 #' resultMC <- AGBmonteCarlo(
-#'   D = KarnatakaForest$D[filt], WD = KarnatakaWD$meanWD[filt],
-#'   errWD = KarnatakaWD$sdWD[filt], coord = coord
+#'   D = NouraguesTrees$D, WD = NouraguesWD$meanWD,
+#'   errWD = NouraguesWD$sdWD, coord = coord
 #' )
-#' str(resultMC)
 #' }
-#'
+#' 
 #' # Propagating errors with a standard error in wood density in all plots at once
 #' \donttest{
-#' KarnatakaForest$meanWD <- KarnatakaWD$meanWD
-#' KarnatakaForest$sdWD <- KarnatakaWD$sdWD
+#' NouraguesTrees$meanWD <- NouraguesWD$meanWD
+#' NouraguesTrees$sdWD <- NouraguesWD$sdWD
 #' resultMC <- by(
-#'   KarnatakaForest, KarnatakaForest$plotId,
+#'   NouraguesTrees, NouraguesTrees$Plot,
 #'   function(x) AGBmonteCarlo(
 #'       D = x$D, WD = x$meanWD, errWD = x$sdWD,
 #'       HDmodel = HDmodel, Dpropag = "chave2004"
@@ -92,22 +84,23 @@
 #' meanAGBperplot <- unlist(sapply(resultMC, "[", 1))
 #' credperplot <- sapply(resultMC, "[", 4)
 #' }
-#'
-#' @keywords monte carlo
+#' closeAllConnections()
+#' 
+#' @keywords Monte Carlo
 #' @importFrom stats pnorm qnorm runif
 #' @export
 
 AGBmonteCarlo <- function(D, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
                           HDmodel = NULL, coord = NULL, Dpropag = NULL, n = 1000,
-                          Carbon = FALSE, Dlim = NULL, plot = NULL) {
+                          Carbon = FALSE, Dlim = NULL) {
   len <- length(D)
-
+  
   # parameters verification -------------------------------------------------
-
+  
   if (n > 1000 | n < 50) {
     stop("n cannot be smaller than 50 or larger than 1000")
   }
-
+  
   if (!is.null(Dpropag)) {
     if ((is.numeric(Dpropag) && !(length(Dpropag) %in% c(1, len)) || (!is.numeric(Dpropag) && tolower(Dpropag) != "chave2004"))) {
       stop('Dpropag should be set to one of these options:
@@ -116,29 +109,29 @@ AGBmonteCarlo <- function(D, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
              - a vector of sd values of the same length as D')
     }
   }
-
+  
   if (is.null(WD) || is.null(errWD)) {
     stop("The WD and errWD arguments must be not NULL")
   }
-
+  
   if (len != length(WD) || len != length(errWD)) {
     stop("One of vector WD or errWD does not have the same length as D")
   }
-
+  
   if (is.null(HDmodel) & is.null(coord) & is.null(H)) {
     stop("Input missing, you need to provide one of the following arguments:
              - H
              - HDmodel
              - coord")
   }
-
+  
   if ((!is.null(HDmodel) && !is.null(coord)) || (!is.null(HDmodel) && !is.null(H)) || (!is.null(coord) && !is.null(H))) {
     stop("Too many input, choose one input among those arguments:
               - H and Herr
               - HDmodel
               - coord")
   }
-
+  
   if (!is.null(H)) {
     if (is.null(errH)) {
       stop("Cannot propagate height errors without information on associated errors (errH is null),
@@ -148,35 +141,25 @@ AGBmonteCarlo <- function(D, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
       stop("H must be the same length as D and errH must be either one value or the same length as D")
     }
   }
-
+  
   if (!is.null(coord) && ((is.vector(coord) && length(coord) != 2) || (is.matrix(coord) && nrow(coord) != len))) {
     stop("coord should be either
              - a vector (e.g. c(longitude, latitude))
              - a matrix with two columns (longitude and latitude)
              having the same number of rows as the number of trees (length(D))")
   }
-
-  # the length of the plot is tested in predictHeight
-  # the names of the plot and the names of the model is tested in predictHeight
-  if (!is.null(plot) && is.null(HDmodel)) {
-    stop("The 'plot' vector must be with 'model' argument")
-  }
-
-
-
-  # function truncated random gausien law -----------------------------------
+  
+  
+  # function truncated random gausian law -----------------------------------
   myrtruncnorm <- function(n, lower = -1, upper = 1, mean = 0, sd = 1) {
-    qnorm(runif(n, pnorm(lower, mean = mean, sd = sd), pnorm(upper, mean = mean, sd = sd)), mean = mean, sd = sd)
+    qnorm(p = runif(n = n, min = pnorm(lower, mean = mean, sd = sd), max = pnorm(upper, mean = mean, sd = sd)), mean = mean, sd = sd)
   }
-
-
-
-
-
+  
+  
   ### Propagate error with Markov Chain Monte Carlo approach
-
+  
   # --------------------- D ---------------------
-
+  
   if (!is.null(Dpropag)) {
     if (length(Dpropag) == 1 && tolower(Dpropag) == "chave2004") {
       # Propagation of the measurement error on D: based on Chave et al. 2004 (p.412) Phil. Trans. R. Soc. Lond. B.
@@ -184,10 +167,10 @@ AGBmonteCarlo <- function(D, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
       chaveError <- function(x, len) {
         ## Assigning large errors on 5% of the trees
         largeErrSample <- sample(len, fivePercent)
-
+        
         D_sd <- 0.0062 * x + 0.0904 # Assigning small errors on the remaining 95% trees
         D_sd[largeErrSample] <- 4.64
-
+        
         x <- myrtruncnorm(n = len, mean = x, sd = D_sd, lower = 0.1, upper = 500)
         return(x)
       }
@@ -199,90 +182,91 @@ AGBmonteCarlo <- function(D, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
   } else {
     D_simu <- replicate(n, D)
   }
-
-
-
-
-
+  
+  
   # --------------------- WD ---------------------
-
-
+  
   #### Below 0.08 and 1.39 are the minimum and the Maximum WD value from the global wood density database respectively
   WD_simu <- suppressWarnings(replicate(n, myrtruncnorm(n = len, mean = WD, sd = errWD, lower = 0.08, upper = 1.39)))
-
-
-
-
-
-
+  
+  
   # --------------------- H ---------------------
-
+  
   # if there is data for H
   if (!is.null(HDmodel) | !is.null(H)) {
     if (!is.null(HDmodel)) {
-      # Propagation of the error thanks to the local model of H
-      H_simu <- apply(D_simu, 2, function(x) predictHeight(x, model = HDmodel, err = TRUE, plot = plot))
+      # Propagation of the error thanks to the H-D local model
+      
+      # If HDmodel is a list of stand-specific hd-models, get back the plotID vector
+      if (!identical(names(HDmodel)[1:4] , c("input", "model", "residuals", "method"))) {
+        plotID <- do.call(c , lapply(names(HDmodel), function(x) {
+          rep(x , length(HDmodel[[x]]$input$D))
+        }))
+      } else plotID <- NULL
+      
+      H_simu <- predictHeight(D_simu, HDmodel, err = TRUE, plot = plotID)
+      
     } else {
       # Propagation of the error using the errH value(s)
       upper <- max(H, na.rm = TRUE) + 15
       H_simu <- suppressWarnings(replicate(n, myrtruncnorm(len, mean = H, sd = errH, lower = 1.3, upper = upper)))
     }
-
+    
     # --------------------- AGB ---------------------
-
+    
     param_4 <- BIOMASS::param_4
     selec <- sample(1:nrow(param_4), n)
     RSE <- param_4[selec, "sd"]
-
+    
     # Construct a matrix where each column contains random errors taken from N(0,RSEi) with i varying between 1 and n
     matRSE <- mapply(function(y) {
       rnorm(sd = y, n = len)
     }, y = RSE)
-
+    
     # Posterior model parameters
     Ealpha <- param_4[selec, "intercept"]
     Ebeta <- param_4[selec, "logagbt"]
-
+    
     # Propagation of the error using simulated parameters
     Comp <- t(log(WD_simu * H_simu * D_simu^2)) * Ebeta + Ealpha
     Comp <- t(Comp) + matRSE
-
+    
     # Backtransformation
     AGB_simu <- exp(Comp) / 1000
   }
-
+  
   # --------------------- Coordinates ---------------------
-
+  
   # If there is no data for H, but site coordinates
   if (!is.null(coord)) {
     if (is.null(dim(coord))) {
       coord <- as.matrix(t(coord))
     }
-
+    
     bioclimParams <- getBioclimParam(coord) # get bioclim variables corresponding to the coordinates
-
+    
     if (nrow(bioclimParams) == 1) {
       bioclimParams <- bioclimParams[rep(1, len), ]
     }
-
+    
     # Equ 7
     # Log(agb) = -1.803 - 0.976 (0.178TS - 0.938CWD - 6.61PS) + 0.976log(WD) + 2.673log(D) -0.0299log(D2)
     param_7 <- BIOMASS::param_7
     selec <- sample(1:nrow(param_7), n)
-
+    
     # Posterior model parameters
     RSE <- param_7[selec, "sd"] # vector of simulated RSE values
-
+    
     # Recalculating n E values based on posterior parameters associated with the bioclimatic variables
     Esim <- tcrossprod(as.matrix(param_7[selec, c("temp", "prec", "cwd")]), as.matrix(bioclimParams))
-
+    
     # Applying AGB formula over simulated matrices and vectors
     AGB_simu <- t(t(log(WD_simu)) * param_7[selec, "logwsg"] +
-      t(log(D_simu)) * param_7[selec, "logdbh"] +
-      t(log(D_simu)^2) * param_7[selec, "logdbh2"] +
-      Esim * -param_7[selec, "E"] +
-      param_7[selec, "intercept"])
-
+                    t(log(D_simu)) * param_7[selec, "logdbh"] +
+                    t(log(D_simu)^2) * param_7[selec, "logdbh2"] +
+                    Esim * -param_7[selec, "E"] +
+                    param_7[selec, "intercept"])
+    
     # Construct a matrix where each column contains random errors taken from N(0,RSEi) with i varying between 1 and n
     matRSE <- mapply(function(y) {
       rnorm(sd = y, n = len)
@@ -290,10 +274,10 @@ AGBmonteCarlo <- function(D, WD = NULL, errWD = NULL, H = NULL, errH = NULL,
     AGB_simu <- AGB_simu + matRSE
     AGB_simu <- exp(AGB_simu) / 1000
   }
-
+  
   if (!is.null(Dlim)) AGB_simu[D < Dlim, ] <- 0
   AGB_simu[ which(is.infinite(AGB_simu)) ] <- NA
-
+  
   if (Carbon == FALSE) {
     sum_AGB_simu <- colSums(AGB_simu, na.rm = TRUE)
     res <- list(

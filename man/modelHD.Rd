@@ -4,14 +4,26 @@
 \alias{modelHD}
 \title{Fitting height-diameter models}
 \usage{
-modelHD(D, H, method = NULL, useWeight = FALSE, drawGraph = FALSE, plot = NULL)
+modelHD(
+  D,
+  H,
+  method = NULL,
+  useWeight = FALSE,
+  drawGraph = FALSE,
+  plot = NULL,
+  bayesian = TRUE,
+  useCache = FALSE,
+  chains = 3,
+  thin = 5,
+  iter = 5000,
+  warmup = 500,
+  ...
+)
 }
 \arguments{
-\item{D}{Vector with diameter measurements (in cm). NA values are accepted but a
-minimum of 10 valid entries (i.e. having a corresponding height in H) is required.}
+\item{D}{Vector with diameter measurements (in cm). NA values are accepted but a minimum of 10 valid entries (i.e. having a corresponding height in H) is required.}
 
-\item{H}{Vector with total height measurements (in m). NA values are accepted but a minimum of 10 valid entries
-(i.e. having a corresponding diameter in D) is required.}
+\item{H}{Vector with total height measurements (in m). NA values are accepted but a minimum of 10 valid entries (i.e. having a corresponding diameter in D) is required.}
 
 \item{method}{Method used to fit the relationship.
 To be chosen between:
@@ -32,31 +44,43 @@ volume, so that larger trees have a stronger influence during the construction o
 
 \item{drawGraph}{If \code{TRUE}, a graphic will illustrate the relationship between H and D. Only if argument \code{plot} is null.}
 
-\item{plot}{(optional) Plot ID, must be either one value, or a vector of the same length as D. This argument is used to build
-stand-specific HD models.}
+\item{plot}{(optional) a vector of character containing the plot ID's of the trees (linked to D and H). Must be either one value, or a vector of the same length as D. This argument is used to build stand-specific HD models.}
+
+\item{bayesian}{a logical. If FALSE (by default) the model is estimated using a frequentist framework (lm or nls). If TRUE, the model is estimated in a Bayesian framework using the brms package.}
+
+\item{useCache}{a logical. If bayesian = TRUE, determine wether to use the cache when building a Bayesian model (see Details).}
+
+\item{chains}{(only relevant if bayesian = TRUE): Number of Markov chains (defaults to 3), see \code{\link[brms:brm]{brms::brm()}}}
+
+\item{thin}{(only relevant if bayesian = TRUE): Thinning rate, see \code{\link[brms:brm]{brms::brm()}}}
+
+\item{iter}{(only relevant if bayesian = TRUE): number of total iterations per chain (including warmup; defaults to 5000), see \code{\link[brms:brm]{brms::brm()}}}
+
+\item{warmup}{(only relevant if bayesian = TRUE): number of warmup (aka burnin) iterations (defaults to 1000), see \code{\link[brms:brm]{brms::brm()}}}
+
+\item{...}{Further arguments passed to \code{brm()}, e.g: prior, cores, etc. See \code{\link[brms:brm]{brms::brm()}}}
 }
 \value{
-If plot is NULL or has a single value, a single list is returned. If there is more than one plot,
+If \code{plot} is NULL or has a single value, a single list is returned. If there is more than one plot,
 multiple embedded lists are returned with plots as the list names.
-Returns a list if the parameter model is not null:
+
+If \code{model} is not null (model comparison), returns a list :
 \itemize{
 \item \code{input}: list of the data used to construct the model (list(H, D))
 \item \code{model}: outputs of the model (same outputs as given by \code{\link[stats:lm]{stats::lm()}}, \code{\link[stats:nls]{stats::nls()}})
-\item \code{RSE}: Residual Standard Error of the model
-\item \code{RSElog}: Residual Standard Error of the log model (\code{NULL} if other model)
 \item \code{residuals}: Residuals of the model
-\item \code{coefficients}: Coefficients of the model
-\item \code{R.squared}: \eqn{R^2} of the model
-\item \code{formula}: Formula of the model
 \item \code{method}: Name of the method used to construct the model
 \item \code{predicted}: Predicted height values
+\item \code{RSE}: Residual Standard Error of the model
+\item \code{RSElog}: Residual Standard Error of the log model (\code{NULL} if other model)
+\item \code{fitPlot}: a ggplot object containing the model fitting plot
+\item \code{weighted}: a logical indicating whether weights were used during the fit
 }
 
-If the parameter model is null, the function return a graph with all the methods for
+If the parameter model is null, the function return a plot with all the methods for
 comparison, the function also returns a data.frame with:
 \itemize{
-\item \code{method}: The method that had been used to construct the graph
-\item \code{color}: The color of the curve in the graph
+\item \code{method}: The method that had been used to construct the plot
 \item \code{RSE}: Residual Standard Error of the model
 \item \code{RSElog}: Residual Standard Error of the log model (\code{NULL} if other model)
 \item \code{Average_bias}: The average bias for the model
@@ -68,30 +92,62 @@ This function fits and compares (optional) height-diameter models.
 \details{
 All the back transformations for log-log models are done using the Baskerville correction (\eqn{0.5 * RSE^2},
 where RSE is the Residual Standard Error).
+
+If useCache = TRUE and this is the first time the model is being built, the model will be saved as a .rds file in the defined cache path (see \code{\link[=createCache]{createCache()}}).
+If useCache = TRUE and the model has already been built using the user cache, the model will be loaded and updated to avoid wasting time re-compiling it.
+If useCache = NULL, the cache is first cleared before building the model.
 }
 \examples{
 
 # Load a data set
 data(NouraguesHD)
 
-# To model the height from a dataset
-\donttest{
-HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, drawGraph = TRUE)
-}
+# Fit H-D models for the Nouragues dataset
+\donttest{ HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, drawGraph = TRUE) }
 
-# If the method needed is known
-HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, method = "weibull", drawGraph = TRUE)
-HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, method = "log1", drawGraph = TRUE)
+### Using frequentist inference
+# For a selected model
+HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H,
+                   method = "log2", drawGraph = TRUE, 
+                   bayesian = FALSE)
 
 # Using weights
 HDmodel <- modelHD(
-  D = NouraguesHD$D, H = NouraguesHD$H, method = "weibull", useWeight = TRUE,
-  drawGraph = TRUE
-)
+  D = NouraguesHD$D, H = NouraguesHD$H,
+  method = "log2", useWeight = TRUE,
+  drawGraph = TRUE, bayesian = FALSE)
+
+# With multiple stands (plots)
+HDmodel <- modelHD(
+  D = NouraguesHD$D, H = NouraguesHD$H,
+  method = "log2", useWeight = TRUE, 
+  plot = NouraguesHD$plotId,
+  drawGraph = TRUE, bayesian = FALSE)
+
+### Using bayesian inference
+\dontrun{HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, 
+  method = "log2", bayesian = TRUE, useCache = TRUE)
+plot(HDmodel$model) }
+  
+### Using weibull bayesian model (time consuming)
+# As the algorithm is likely to find numerous local minima,
+# defining priors is strongly recommended (see "Some tricks" part in the vignette)
+# Also, since  model parameters and chain iterations are strongly correlated,
+# an increase of 'thin', 'iter' and 'warmup' may be required.
+\dontrun{HDmodel <- modelHD(D = NouraguesHD$D, H = NouraguesHD$H, 
+ method = "weibull", bayesian = TRUE, useCache = TRUE,
+ thin = 20, iter = 12000, warmup = 2000,
+ prior = c(brms::set_prior(prior = "uniform(0,80)",
+                           lb = 0, ub = 80, class = "b", nlpar = "a"),
+           brms::set_prior(prior = "uniform(0,100)",
+                           lb = 0, ub = 100, class = "b", nlpar = "b"),
+           brms::set_prior(prior = "uniform(0.1,0.9)",
+                           lb = 0.1, ub = 0.9, class = "b", nlpar = "c"))) }
+
 }
 \seealso{
 \code{\link[=retrieveH]{retrieveH()}}
 }
 \author{
-Maxime REJOU-MECHAIN, Arthur PERE, Ariane TANGUY
+Maxime REJOU-MECHAIN, Arthur PERE, Ariane TANGUY, Arthur Bailly
 }

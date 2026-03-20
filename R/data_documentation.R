@@ -1,25 +1,3 @@
-#' Angiosperm Phylogeny Group (APG III) dataset
-#'
-#' APGIII Families taken from the Angiosperm Phylogeny Website (http://www.mobot.org/MOBOT/research/APweb/)
-#'
-#' @docType data
-#' @format
-#' A data frame with 502 observations on the following 2 variables:
-#'   - `order`: Vector of order
-#'   - `famAPG`: Vector of APGIII families
-#'
-#' @usage data("apgFamilies")
-#' @source Stevens, P. F. (2001 onwards). _Angiosperm Phylogeny Website_.
-#' Version 12, July 2012. Retrieved on 2016-07-25 http://www.mobot.org/MOBOT/research/APweb/
-#'
-#' @examples
-#' data(apgFamilies)
-#' str(apgFamilies)
-#' @keywords datasets internal
-#'
-"apgFamilies"
-
-
 #' Feldpausch et al. 2012 coefficients for generalized height-diameter models
 #'
 #' Weibull coefficients from a height-diameter model of the form \eqn{H = a(1-exp(-b*D^c))} given by Feldpausch
@@ -46,56 +24,83 @@
 "feldCoef"
 
 
-#' Genus Family database
+#' Nouragues forest dataset
 #'
-#' To create this database, we combined the genera from The Plant List (http://www.theplantlist.org/1.1/browse/-/-/)
-#' and the Vascular Plant Families and Genera from Kew (http://data.kew.org/vpfg1992/genlist.html).
-#' Families were checked against the APGIII families.
-#'
+#' This dataset contains 4 of the 12 plots of `Petit Plateau' permanent plots fifth census, 2012, Nouragues forestTree dataset (French Guiana). For educational purposes, some virtual trees have been added in the dataset. Dead trees have been removed.
+#' 
 #' @docType data
-#' @usage data("genusFamily")
-#' @format A data frame with 28107 observations on the following 2 variables:
-#'   - `family`: Vector of families APGIII corrected
-#'   - `genus`: Vector of genus
-#'
-#' @source
-#' WCSP (2015). _World Checklist of Selected Plant Families_.
-#' Facilitated by the Royal Botanic Gardens, Kew. Published on the Internet; http://apps.kew.org/wcsp/ Retrieved 2015-12-17.
-#'
-#' The Plant List (2013). Version 1.1. Published on the Internet; http://www.theplantlist.org/ Retrieved 2016-08-25.
-#' @examples
-#' data(genusFamily)
-#' str(genusFamily)
-#' @keywords datasets internal
-"genusFamily"
-
-
-#' Karnataka forest dataset
-#'
-#' Dataset from 96 forest plots (1 ha) established in the central Western Ghats of India by Ramesh et al. (2010).
-#'
-#' @docType data
-#' @usage data("KarnatakaForest")
+#' @usage data(NouraguesTrees)
 #' @format
-#' A data frame with 65889 observations on the following 8 variables :
-#'   - `plotId`: Names of the plots
-#'   - `treeId`: Tree Id, contains a letter (A, B, C...) when an individual has multiple stems
-#'   - `family`: Family
-#'   - `genus`: Genus
-#'   - `species`: Species
-#'   - `D`: Diameter (cm)
-#'   - `lat`: Latitude
-#'   - `long`: Longitude
+#' A data frame with 2050 observations (trees) of the 8 following variables :
+#'   - `site`: Name of the site set up in the Nouragues forest
+#'   - `plot`: Plot ID
+#'   - `Xfield`: Tree location on the x-axis in the local coordinate system (defined by the 4 corners of the plot) 
+#'   - `Yfield`: Tree location on the y-axis in the local coordinate system
+#'   - `family`: Tree family
+#'   - `genus`: Tree genus
+#'   - `species`: Tree species
+#'   - `D`: Tree diameter (in cm)
 #'
 #' @references
-#' Ramesh, B. R. et al. (2010).
-#' _Forest stand structure and composition in 96 sites along environmental gradients in the central Western Ghats of India_
-#' Ecological Archives E091-216. Ecology, 91(10), 3118-3118.
+#'  `Petit Plateau' permanent plots fifth census, 2012, Nouragues forest, [https://doi.org/10.18167/DVN1/TZ1RL9](https://dataverse.cirad.fr/dataset.xhtml?persistentId=doi:10.18167/DVN1/TZ1RL9), CIRAD Dataverse, V1
 #' @examples
-#' data(KarnatakaForest)
-#' str(KarnatakaForest)
+#' data(NouraguesTrees)
+#' str(NouraguesTrees)
 #' @keywords datasets
-"KarnatakaForest"
+"NouraguesTrees"
+
+
+#' Nouragues plot coordinates
+#'
+#' Dataset containing the corner coordinates of 4 plots of `Petit Plateau' in Nouragues forest (French Guiana).
+#' 
+#' @docType data
+#' @usage data(NouraguesCoords)
+#' @format
+#' A data frame with 16 observations (GPS measurements) of the 8 following variables :
+#'   - `Site`: Name of the site set up in the Nouragues forest
+#'   - `Plot`: Plot ID of the site
+#'   - `Xfield`: Corner location on the x-axis in the local coordinate system (defined by the 4 corners of the plot) 
+#'   - `Yfield`: Corner location on the y-axis in the local coordinate system
+#'   - `Xutm`: Corner location on the x-axis in the UTM coordinate system
+#'   - `Yutm`: Corner location on the y-axis in the UTM coordinate system
+#'   - `Long`: Corner longitude coordinate
+#'   - `Lat`: Corner latitude coordinate
+#'
+#' @references
+#' Jaouen, Gaëlle, 2023, "Nouragues forest permanent plots details", \doi{10.18167/DVN1/HXKS4E}, CIRAD Dataverse, V2
+#' @examples
+#' data(NouraguesCoords)
+#' str(NouraguesCoords)
+#' @keywords datasets
+"NouraguesCoords"
+
+
+#' Nouragues plot 201 coordinates
+#' 
+#' Simulated corner coordinates of Nouragues 'Petit plateau' plot 201. The original coordinates have been modified to make the plot non-squared, and 10 repeated measurements of each corner have been simulated adding a random error to x and y coordinates.
+#' 
+#' @docType data
+#' @usage data(NouraguesPlot201)
+#' @format
+#' A data frame with 40 (simulated GPS measurements) of the 8 following variables :
+#'   - `Site`: Name of the site set up in the Nouragues forest
+#'   - `Plot`: Plot ID of the site
+#'   - `Xfield`: Corner location on the x-axis in the local coordinate system (defined by the 4 corners of the plot) 
+#'   - `Yfield`: Corner location on the y-axis in the local coordinate system
+#'   - `Xutm`: Corner location on the x-axis in the UTM coordinate system
+#'   - `Yutm`: Corner location on the y-axis in the UTM coordinate system
+#'   - `Long`: Corner longitude coordinate
+#'   - `Lat`: Corner latitude coordinate
+#'
+#' @references
+#' Jaouen, Gaëlle, 2023, "Nouragues forest permanent plots details", \doi{10.18167/DVN1/HXKS4E}, CIRAD Dataverse, V2
+#' @examples
+#' data(NouraguesPlot201)
+#' str(NouraguesPlot201)
+#' @keywords datasets
+"NouraguesPlot201"
+
 
 
 #' Height-Diameter data
@@ -204,58 +209,31 @@
 "param_7"
 
 
-
-#' Mean standard deviation of wood density estimates at different taxonomic levels
-#'
-#' This dataset gives the mean standard deviation of wood density values of the [wdData] dataset
-#' at different taxonomical levels only considering taxa having more than 10 different values.
-#' This dataset is used in the function [getWoodDensity()] to associate at the appropriate taxonomic
-#' level a mean error to wood density estimate.
-#'
-#' @docType data
-#' @usage data("sd_10")
-#' @format
-#' A data frame with 3 observations on the following 2 variables:
-#'   - `taxo`: Character vector with the different taxonomical levels (family, genus, species)
-#'   - `sd`: Numeric vector giving the mean standard deviation of wood density values
-#'
-#' @details This dataset is used in the function [getWoodDensity()].
-#' @references
-#' Rejou-Mechain et al. (2017).
-#'  _BIOMASS: An R Package for estimating above-ground biomass and its uncertainty in tropical forests_.
-#'  Methods in Ecology and Evolution, 8 (9), 1163-1167.
-#' @examples
-#' data(sd_10)
-#' str(sd_10)
-#' @keywords datasets wdData getWoodDensity internal
-"sd_10"
-
-
 #' The global wood density database
 #'
-#' The global wood density database (Chave et al. 2009, Zanne et al. 2009).
+#' The Global Wood Density Database v.2 (GWDD v.2) (Fischer, F. J., et al. 2026).
 #'
 #' @docType data
-#' @usage data("wdData")
+#' @usage data("wsg_estimates")
 #' @format
-#'  A data frame with 16467 observations on the following 7 variables.
+#'  A data frame with 20332 observations on the following 6 variables.
 #'   - `family`: a character vector indicating the family
 #'   - `genus`: a character vector indicating the genus
 #'   - `species`: a character vector indicating the species
-#'   - `wd`: a numeric vector of wood densities (g/cm^3)
-#'   - `region`: a character vector of regions (see [getWoodDensity()])
-#'   - `referenceNumber`: a numeric vector of reference numbers (bibliography)
-#'   - `regionId`: a character vector of region ids
+#'   - `wsg`: a numeric vector of mean wood density of a population (g/cm^3) at taxonomic level
+#'   - `sd`: a numeric vector of standard deviation of wood density of a popuation (g/cm^3) at taxonomic level
+#'   - `level_tax`: a character vector of taxonomic level (namely `family` or `genus` or `species`)
 #'
 #' @details This dataset is used in the function [getWoodDensity()], to estimate a taxon-average wood density value.
 #' @references
-#' Chave et al. (2009) _Towards a worldwide wood economics spectrum._ Ecology letters 12:4, 351-366.
-#' @source Zanne et al. _Global wood density database._ Dryad. Identifier: http://datadryad.org/handle/10255/dryad.235 (2009).
+#' Fischer, F. J., et al. (2026). Beyond species means - the intraspecific contribution to global wood density variation. New Phytol. https://doi.org/10.1111/nph.70860
+#' @source 
+#' Fischer, F. J., et al. (2026). Global Wood Density Database v.2 (GWDD v.2) (Data set). Zenodo. https://doi.org/10.5281/zenodo.18262736
 #' @examples
-#' data(wdData)
-#' str(wdData)
+#' data(wsg_estimates)
+#' str(wsg_estimates)
 #' @keywords datasets wood density getWoodDensity internal
-"wdData"
+"wsg_estimates"
 
 
 
@@ -281,10 +259,16 @@
 #' __weibullFunction__
 #' Construct a three parameter Weibull model of the form: \deqn{H = a*(1-exp(-(D/b)^c))} (a, b, c are the model parameters to be estimated)
 #'
-#'
 #' @param data Dataset with the informations of height (H) and diameter (D)
 #' @param method In the case of the loglogFunction, the model is to be chosen between log1, log2 or log3.
 #' @param weight (optional) Vector indicating observation weights in the model.
+#' @param bayesian a logical. If FALSE (by default) the model is estimated using a frequentist framework (lm or nls). If TRUE, the model is estimated in a Bayesian framework using the brms package.
+#' @param useCache a logical. If bayesian = TRUE, determine wether to use the cache when building a Bayesian model (see Details).
+#' @param chains (only relevant if bayesian = TRUE): Number of Markov chains (defaults to 3), see [brms::brm()]
+#' @param thin (only relevant if bayesian = TRUE): Thinning rate, see [brms::brm()]
+#' @param iter (only relevant if bayesian = TRUE): number of total iterations per chain (including warmup; defaults to 5000), see [brms::brm()]
+#' @param warmup (only relevant if bayesian = TRUE): number of warmup (aka burnin) iterations (defaults to 1000), see [brms::brm()]
+#' @param ... Further arguments passed to `brm()`, e.g: prior, cores, etc. See [brms::brm()]
 #'
 #' @return All the functions give an output similar to the one given by [stats::lm()], obtained for
 #' `michaelisFunction` and `weibullFunction` from [minpack.lm::nlsLM]).

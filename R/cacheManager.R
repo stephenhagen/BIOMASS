@@ -9,23 +9,34 @@
 #'     - On Windows 7 up to 10 : `C:\\Users\\<username>\\AppData\\Local\\R\\BIOMASS`
 #'     - On Windows XP : `C:\\Documents and Settings\\<username>\\Data\\R\\BIOMASS`
 #' 3. fallback to R session tempdir
-#'   
+#' 
+#' @author Guillaume CORNU  
 #' @param nameFile character. file to resolve cached path.
 #' @return file path of the resolved cached file.
 #' @importFrom utils download.file unzip
 #' @export 
+#' 
 cacheManager <- function(nameFile) {
   
   if(length(nameFile)>1) {
     stop("Only one file at a time please!")
   }
   
-  if (nameFile == "correctTaxo.log") {
-    return(cachePath("correctTaxo.log"))
-  }
+  # not sure it's necessary
+  # if (nameFile == "correctTaxo.log") {
+  #   return(cachePath("correctTaxo.log"))
+  # }
   
+  if (nameFile %in% 
+      c("log1_weights_F_model.rds","log1_weights_T_model.rds","log2_weights_F_model.rds","log2_weights_T_model.rds",
+        "michaelis_weights_F_model.rds","michaelis_weights_T_model.rds","weibull_weights_F_model.rds","weibull_weights_T_model.rds",
+        "brms_fit.rds")) {
+
+    return(cachePath(nameFile))
+  }
+
   if (nameFile == "feldRegion.grd") {
-    return(system.file("external", "feldRegion.grd", package = "BIOMASS", mustWork = TRUE))
+    return(system.file("extdata", "feldRegion.grd", package = "BIOMASS", mustWork = TRUE))
   }
   
   url <- list(
@@ -36,23 +47,23 @@ cacheManager <- function(nameFile) {
   )
   url <- url[[nameFile]]
   
-  if(is.null(url)) {
-    stop(
-      "I don't know how to get this file!",
-      "\n  ", nameFile
-    )
-  }
-  
-  req <- httr2::request(url)
-  req <- httr2::req_error(req, function(response) FALSE)
-  qryResult <- httr2::req_perform(req)
-  
-  if (httr2::resp_is_error(qryResult)) {
-    message("There appears to be a problem reaching the directory.")
-    return(invisible(NULL))
-  }
-  
   if(!file.exists(cachePath(nameFile))) {
+    if(is.null(url)) {
+      stop(
+        "I don't know how to get this file!",
+        "\n  ", nameFile
+      )
+    }
+    
+    req <- httr2::request(url)
+    req <- httr2::req_error(req, function(response) FALSE)
+    qryResult <- httr2::req_perform_connection(req)
+    
+    if (httr2::resp_is_error(qryResult)) {
+      message("There appears to be a problem reaching the directory.")
+      return(invisible(NULL))
+    }
+    
     dest <- tempfile(fileext = ".zip")
     on.exit(unlink(dest))
     
@@ -61,7 +72,7 @@ cacheManager <- function(nameFile) {
     unzip(dest, exdir = cachePath())
   }
   
-  if(!file.exists(cachePath(nameFile))) {
+  if (!file.exists(cachePath(nameFile))) {
     stop("Error while retrieving file ", nameFile)
   }
   
@@ -95,6 +106,7 @@ cachePath <- function(...) {
   # fallback to R session temporary folder
   if(!dir.exists(basePath)) {
     basePath <- file.path(tempdir(check=TRUE), "BIOMASS")
+    dir.create(basePath, showWarnings = FALSE, recursive = TRUE)
     src <- "temp"
   }
   
@@ -107,9 +119,9 @@ cachePath <- function(...) {
 }
 
 #' Function used to create or activate a permanent cache.
-#' 
+#'
 #' Permanent cache is located by default in user data dir.
-#' 
+#'
 #' You can provide a custom path (that will be defined as a BIOMASS.cache option)
 #' but clearCache function will refuse to operate on it for security reasons.
 #' @param path Use a custom path to host cache
@@ -136,6 +148,7 @@ createCache <- function(path=NULL) {
 #' resulting in deactivating cache as a side effect
 #' @return No return value, called for side effects
 #' @importFrom utils askYesNo
+#' @export
 clearCache <- function(remove=FALSE) {
   basePath <- cachePath()
   

@@ -21,6 +21,8 @@ inst/doc
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+
+# Package specific
 biomass\.Rproj
 vignettes/VignetteBiomass_cache/*
 tests/testthat/Rplots\.pdf
@@ -32,4 +34,16 @@ data-raw/climate_variable/wc2-5/
 vignettes/BIOMASS_cache/html/
 
 \.~*\#
-.Rproj.user
+
+tests/testthat/_snaps/
+
+# Web site
+docs
+
+# Build R WASM package
+.github/workflows/webr-pkgdown-build-and-deploy.yml
+
+# Some test files
+tests/testthat/_snaps/
+/doc/
+/Meta/

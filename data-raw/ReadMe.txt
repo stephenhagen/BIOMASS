@@ -46,47 +46,30 @@ OUTPUT: genusFamily.csv: a file with 2 columns:
 	- genus
 
 
-3. Global wood density, globalwd.R
-
-OUTPUT: wdData.csv: download the file and read it from the website : http://datadryad.org/bitstream/handle/10255/dryad.235/GlobalWoodDensityDatabase.xls?sequence=1
-
-
-
-4. Karnataka forest, KarnatakaForest.R
-
-INPUT: 
-	- Macroplot_data_Rev.txt
-	- Species_list.txt
-	- Site_variables.txt
-	
-	Those files contain all the data needed for Karnataka Forest database.
+3. Global wood density, generate_wd_for_biomass.R and inference_gwd_all_cluster.R
+ 
+  Scripts used to generate wsg_estimates.rda
 
 
 
-5. NouraguesHD
+4. NouraguesHD
 
 	For this one, we lost the code to reconstruct the database, but this isn't false data
 
 
 
-6. sd_10, sd_10.R
-
-INPUT: the data from the table wdData, see 3. 
-
-
-
-7. param_4, param_4.R
+5. param_4, param_4.R
 
 INPUT: Allometry-database-2012m_data.csv
 
 
 
-8. param_7, param_7.R
+6. param_7, param_7.R
 
 INPUT:
 	- Allometry-database-2012m_data.csv
 	- Allometry-database-2012n_envsub.csv
 
 
-9. Feldpausch Coefficient
+7. Feldpausch Coefficient
 	For this one there is no code just it's a copy/paste of the table 3 on the paper: Feldpausch et al. 2012.
